@@ -15,72 +15,144 @@ migrate = Migrate(app, db)
 
 db.init_app(app)
 
+
 @app.route('/')
 def index():
     return "Index for Game/Review/User API"
 
-@app.route('/games')
+
+@app.route('/games', methods=['GET', 'POST'])
 def games():
+    if request.method == 'GET':
+        games = []
+        for game in Game.query.all():
+            game_dict = {
+                "title": game.title,
+                "genre": game.genre,
+                "platform": game.platform,
+                "price": game.price,
+            }
+            games.append(game_dict)
 
-    games = []
-    for game in Game.query.all():
-        game_dict = {
-            "title": game.title,
-            "genre": game.genre,
-            "platform": game.platform,
-            "price": game.price,
-        }
-        games.append(game_dict)
+        response = make_response(
+            games,
+            200
+        )
 
-    response = make_response(
-        games,
-        200
-    )
+    else:
+        game = Game(
+            title=request.form.get("title"),
+            genre=request.form.get("genre"),
+            platform=request.form.get("platform"),
+            price=request.form.get("price"),
+        )
+        db.session.add(game)
+        db.session.commit()
+
+        response = make_response(
+            game.to_dict(),
+            201
+        )
 
     return response
 
-@app.route('/games/<int:id>')
+
+@app.route('/games/<int:id>', methods=['GET', 'PATCH', 'DELETE'])
 def game_by_id(id):
     game = Game.query.filter(Game.id == id).first()
-    
-    game_dict = game.to_dict()
 
-    response = make_response(
-        game_dict,
-        200
-    )
+    if request.method == 'GET':
+        game_dict = game.to_dict()
+
+        response = make_response(
+            game_dict,
+            200
+        )
+
+    elif request.method == 'DELETE':
+        db.session.delete(game)
+        db.session.commit()
+
+        response_dict = {
+            "delete_successful": True,
+            "message": "Game deleted."
+        }
+
+        response = make_response(
+            response_dict,
+            200
+        )
+
+    elif request.method == 'PATCH':
+        for attr in request.form:
+            setattr(game, attr, request.form.get(attr))
+
+        db.session.commit()
+
+        response = make_response(
+            game.to_dict(),
+            200
+        )
 
     return response
 
-@app.route('/reviews')
+
+@app.route('/reviews', methods=["GET", "POST"])
 def reviews():
 
-    reviews = []
-    for review in Review.query.all():
-        review_dict = review.to_dict()
-        reviews.append(review_dict)
+    if request.method == "GET":
+        reviews = []
+        for review in Review.query.all():
+            review_dict = review.to_dict()
+            reviews.append(review_dict)
 
-    response = make_response(
-        reviews,
-        200
-    )
+        response = make_response(
+            reviews,
+            200
+        )
+
+    elif request.method == "POST":
+
+        review = Review(
+            score=request.form.get("score"),
+            comment=request.form.get("comment"),
+            user_id=request.form.get("user_id"),
+            game_id=request.form.get("game_id")
+        )
+
+        db.session.add(review)
+        db.session.commit()
+
+        response = make_response(
+            review.to_dict(),
+            201
+        )
 
     return response
 
-@app.route('/users')
+
+@app.route('/users', methods=["GET", "POST"])
 def users():
+    if request.method == "GET":
+        users = []
+        for user in User.query.all():
+            user_dict = user.to_dict()
+            users.append(user_dict)
 
-    users = []
-    for user in User.query.all():
-        user_dict = user.to_dict()
-        users.append(user_dict)
+        response = make_response(
+            users,
+            200
+        )
 
-    response = make_response(
-        users,
-        200
-    )
+    elif request.method == "POST":
+        user = User(name=request.form.get("name"))
+        db.session.add(user)
+        db.session.commit()
+
+        response = make_response(user.to_dict(), 201)
 
     return response
+
 
 if __name__ == '__main__':
     app.run(port=5555, debug=True)
